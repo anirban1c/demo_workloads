@@ -1,0 +1,14 @@
+spring:
+  application.name: funds-service
+  config.import: classpath:demo-defaults.yml
+  kafka.consumer.group-id: funds-service
+  datasource.hikari.schema: funds
+  flyway:
+    schemas: funds
+    default-schema: funds
+server.port: ${PORT:8083}
+demo:
+  backpressure:
+    bindings:
+      paylane: [funds-commands]
+      corebank: [funds-commands]

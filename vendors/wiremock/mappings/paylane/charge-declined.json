@@ -1,0 +1,38 @@
+{
+  "name": "paylane charge-declined",
+  "priority": 2,
+  "request": {
+    "method": "POST",
+    "urlPath": "/paylane/v1/charges",
+    "bodyPatterns": [
+      {
+        "matchesJsonPath": "$[?(@.amount > 10000)]"
+      }
+    ]
+  },
+  "response": {
+    "status": 402,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "delayDistribution": {
+      "type": "lognormal",
+      "median": 150,
+      "sigma": 0.4
+    },
+    "jsonBody": {
+      "error": {
+        "type": "card_error",
+        "code": "card_declined",
+        "message": "Your card was declined."
+      }
+    },
+    "transformers": [
+      "response-template"
+    ]
+  },
+  "metadata": {
+    "vendor": "paylane",
+    "kind": "base"
+  }
+}

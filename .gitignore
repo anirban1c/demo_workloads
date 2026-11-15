@@ -1,0 +1,7 @@
+otel/*.jar
+!otel/collector-standalone.yaml
+.gradle/
+build/
+*.iml
+.idea/
+load-tests/src/gatling/resources/users.csv

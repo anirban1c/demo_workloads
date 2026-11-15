@@ -1,0 +1,10 @@
+spring:
+  application.name: balance-service
+  config.import: classpath:demo-defaults.yml
+  kafka.consumer.group-id: balance-service
+  datasource.hikari.schema: balance
+  flyway:
+    schemas: balance
+    default-schema: balance
+server.port: ${PORT:8084}
+demo.backpressure.enabled: false   # projection only consumes events; no vendor on the consume path

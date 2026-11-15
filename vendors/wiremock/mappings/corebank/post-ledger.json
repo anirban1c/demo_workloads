@@ -1,0 +1,31 @@
+{
+  "name": "corebank post-ledger",
+  "priority": 5,
+  "request": {
+    "method": "POST",
+    "urlPathPattern": "/corebank/accounts/[^/]+/ledger"
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "delayDistribution": {
+      "type": "lognormal",
+      "median": 120,
+      "sigma": 0.4
+    },
+    "jsonBody": {
+      "entryId": "le_{{randomValue type='UUID'}}",
+      "accountId": "{{request.pathSegments.[2]}}",
+      "status": "POSTED"
+    },
+    "transformers": [
+      "response-template"
+    ]
+  },
+  "metadata": {
+    "vendor": "corebank",
+    "kind": "base"
+  }
+}

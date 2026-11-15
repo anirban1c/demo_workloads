@@ -1,0 +1,30 @@
+{
+  "name": "relatecrm update-contact",
+  "priority": 5,
+  "request": {
+    "method": "PUT",
+    "urlPathPattern": "/crm/contacts/[^/]+"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "delayDistribution": {
+      "type": "lognormal",
+      "median": 100,
+      "sigma": 0.4
+    },
+    "jsonBody": {
+      "id": "{{request.pathSegments.[2]}}",
+      "updated": true
+    },
+    "transformers": [
+      "response-template"
+    ]
+  },
+  "metadata": {
+    "vendor": "relatecrm",
+    "kind": "base"
+  }
+}

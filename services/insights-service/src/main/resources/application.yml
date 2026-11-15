@@ -1,0 +1,10 @@
+spring:
+  application.name: insights-service
+  config.import: classpath:demo-defaults.yml
+  kafka.consumer.group-id: insights-service
+  datasource.hikari.schema: insights
+  flyway:
+    schemas: insights
+    default-schema: insights
+server.port: ${PORT:8087}
+demo.backpressure.bindings.insight-ai: [insights-requests]

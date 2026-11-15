@@ -1,0 +1,18 @@
+# Joins the apps to the sre_workflows compose network so they export to its otel-collector
+# (-> Tempo, Langfuse, Prometheus, Grafana). Used automatically by `make up` when that network exists.
+x-sre: &sre
+  networks: [default, sre]
+
+services:
+  gateway: *sre
+  login-service: *sre
+  funds-service: *sre
+  balance-service: *sre
+  user-service: *sre
+  profile-service: *sre
+  insights-service: *sre
+
+networks:
+  sre:
+    external: true
+    name: ${SRE_NETWORK:-sre_workflows_default}

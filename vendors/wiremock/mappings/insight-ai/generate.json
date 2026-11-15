@@ -1,0 +1,41 @@
+{
+  "name": "insight-ai generate",
+  "priority": 5,
+  "request": {
+    "method": "POST",
+    "urlPath": "/insights-ai/v1/insights"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "delayDistribution": {
+      "type": "lognormal",
+      "median": 1200,
+      "sigma": 0.6
+    },
+    "jsonBody": {
+      "id": "ins_{{randomValue type='UUID'}}",
+      "model": "insight-large",
+      "summary": "{{pickRandom 'Spending on groceries is up 12% vs last period.' 'You saved 18% of income this period.' 'Subscriptions account for 9% of outgoings.' 'Travel spend doubled this month.'}}",
+      "categories": [
+        {
+          "name": "groceries",
+          "share": "{{randomInt lower=5 upper=30}}"
+        },
+        {
+          "name": "transport",
+          "share": "{{randomInt lower=2 upper=20}}"
+        }
+      ]
+    },
+    "transformers": [
+      "response-template"
+    ]
+  },
+  "metadata": {
+    "vendor": "insight-ai",
+    "kind": "base"
+  }
+}

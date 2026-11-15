@@ -1,0 +1,33 @@
+{
+  "name": "insight-ai background-errors",
+  "priority": 3,
+  "request": {
+    "method": "ANY",
+    "urlPathPattern": "/insights-ai/.*",
+    "headers": {
+      "X-Attempt-Id": {
+        "matches": "^ff.*"
+      }
+    }
+  },
+  "response": {
+    "status": 503,
+    "headers": {
+      "Content-Type": "application/json",
+      "Retry-After": "1"
+    },
+    "jsonBody": {
+      "error": "service_unavailable",
+      "message": "insight-ai is temporarily unavailable"
+    },
+    "delayDistribution": {
+      "type": "lognormal",
+      "median": 200,
+      "sigma": 0.4
+    }
+  },
+  "metadata": {
+    "vendor": "insight-ai",
+    "kind": "base"
+  }
+}

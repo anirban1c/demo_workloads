@@ -1,0 +1,5 @@
+spring:
+  application.name: login-service
+  config.import: classpath:demo-defaults.yml
+  autoconfigure.exclude: org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+server.port: ${PORT:8082}

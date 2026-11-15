@@ -1,0 +1,30 @@
+{
+  "name": "relatecrm create-contact",
+  "priority": 5,
+  "request": {
+    "method": "POST",
+    "urlPath": "/crm/contacts"
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "delayDistribution": {
+      "type": "lognormal",
+      "median": 100,
+      "sigma": 0.4
+    },
+    "jsonBody": {
+      "id": "crm_{{randomValue type='UUID'}}",
+      "externalRef": "{{jsonPath request.body '$.externalRef'}}"
+    },
+    "transformers": [
+      "response-template"
+    ]
+  },
+  "metadata": {
+    "vendor": "relatecrm",
+    "kind": "base"
+  }
+}

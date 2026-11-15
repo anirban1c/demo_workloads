@@ -1,0 +1,203 @@
+# demo_workloads: gateway + 6 Spring Boot services on Kafka (Redpanda), with WireMock standing in for the SaaS
+# vendors. Every app runs the OpenTelemetry Java agent and exports OTLP to the collector of the sre_workflows
+# stack (../sre_workflows). `make up` adds docker-compose.sre.yml (joins its network) when that stack is running,
+# otherwise it starts the `standalone` profile: a local collector + Jaeger (http://localhost:16686).
+#
+#   make up          # build jars + images, start everything
+#   gateway          http://localhost:8080      Redpanda Console http://localhost:8088
+#   WireMock admin   http://localhost:8089/__admin    Grafana (sre_workflows) http://localhost:3001
+
+x-otel-env: &otel-env
+  JAVA_TOOL_OPTIONS: >-
+    -javaagent:/otel/opentelemetry-javaagent.jar
+    -Dotel.javaagent.extensions=/otel/baggage-processor-extension.jar
+    -XX:MaxRAMPercentage=70 -XX:+UseG1GC
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_RESOURCE_ATTRIBUTES: service.namespace=demo-workloads,deployment.environment=local
+  OTEL_TRACES_SAMPLER: parentbased_traceidratio
+  OTEL_TRACES_SAMPLER_ARG: ${OTEL_SAMPLE_RATIO:-1.0}
+  OTEL_METRICS_EXPORTER: otlp
+  OTEL_LOGS_EXPORTER: otlp
+  OTEL_METRIC_EXPORT_INTERVAL: "15000"
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "true"
+  OTEL_INSTRUMENTATION_KAFKA_EXPERIMENTAL_SPAN_ATTRIBUTES: "true"
+  # Each vendor hostname is a WireMock alias -> its own peer.service node on the Tempo service graph.
+  OTEL_INSTRUMENTATION_COMMON_PEER_SERVICE_MAPPING: >-
+    acme-identity=acme-identity,paylane=paylane,corebank=corebank,kycheck=kycheck,relatecrm=relatecrm,insight-ai=insight-ai
+  # baggage-processor extension: copy journey baggage onto every span (and log record).
+  OTEL_JAVA_EXPERIMENTAL_SPAN_ATTRIBUTES_COPY_FROM_BAGGAGE_INCLUDE: journey.name,journey.id,journey.step,user.id
+  OTEL_JAVA_EXPERIMENTAL_LOG_ATTRIBUTES_COPY_FROM_BAGGAGE_INCLUDE: journey.name,journey.id,user.id
+
+x-app-env: &app-env
+  <<: *otel-env
+  KAFKA_BOOTSTRAP: redpanda:9092
+  DB_URL: jdbc:postgresql://dw-postgres:5432/demo
+  PORT: "8080"
+  VENDOR_BASE_ACME_IDENTITY: http://acme-identity:8080
+  VENDOR_BASE_PAYLANE: http://paylane:8080
+  VENDOR_BASE_COREBANK: http://corebank:8080
+  VENDOR_BASE_KYCHECK: http://kycheck:8080
+  VENDOR_BASE_RELATECRM: http://relatecrm:8080
+  VENDOR_BASE_INSIGHT_AI: http://insight-ai:8080
+
+x-app: &app
+  restart: unless-stopped
+  mem_limit: 640m
+  healthcheck:
+    test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8080 && printf \"GET /actuator/health/readiness HTTP/1.0\\r\\n\\r\\n\" >&3 && grep -q UP <&3'"]
+    interval: 5s
+    timeout: 3s
+    retries: 40
+    start_period: 20s
+
+services:
+  # ---------------- infrastructure ----------------
+  redpanda:
+    image: redpandadata/redpanda:${REDPANDA_TAG:-v26.1.20}
+    command:
+      - redpanda start
+      - --mode dev-container
+      - --smp 1
+      - --memory 1G
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+    ports: ["19092:19092"]
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true'"]
+      interval: 5s
+      retries: 30
+    volumes: [redpanda_data:/var/lib/redpanda/data]
+
+  redpanda-console:
+    image: redpandadata/console:${REDPANDA_CONSOLE_TAG:-v3.14.0}
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+    ports: ["8088:8080"]
+    depends_on: {redpanda: {condition: service_healthy}}
+
+  dw-postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: demo
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: demo
+    command: ["postgres", "-c", "max_connections=200"]
+    ports: ["5433:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo"]
+      interval: 3s
+      retries: 20
+    volumes: [postgres_data:/var/lib/postgresql/data]
+
+  dw-redis:
+    image: redis:7
+    ports: ["6380:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 20
+
+  # One WireMock serving every fictitious SaaS vendor; each vendor hostname is a network alias.
+  wiremock:
+    image: wiremock/wiremock:${WIREMOCK_TAG:-3.13.2}
+    command: ["--global-response-templating", "--disable-request-logging", "--async-response-enabled=true",
+              "--async-response-threads=200", "--container-threads=400", "--no-request-journal"]
+    volumes: ["./vendors/wiremock:/home/wiremock:ro"]
+    ports: ["8089:8080"]
+    networks:
+      default:
+        aliases: [acme-identity, paylane, corebank, kycheck, relatecrm, insight-ai]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/__admin/health || exit 1"]
+      interval: 3s
+      retries: 20
+
+  # ---------------- standalone telemetry (only when sre_workflows is not running) ----------------
+  otel-collector:
+    profiles: [standalone]
+    image: otel/opentelemetry-collector-contrib:${OTELCOL_TAG:-0.140.0}
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes: ["./otel/collector-standalone.yaml:/etc/otelcol/config.yaml:ro"]
+    ports: ["14317:4317", "14318:4318"]
+    depends_on: [jaeger]
+
+  jaeger:
+    profiles: [standalone]
+    image: jaegertracing/jaeger:${JAEGER_TAG:-2.22.0}
+    ports: ["16686:16686"]
+
+  # ---------------- applications ----------------
+  gateway:
+    <<: *app
+    build: {context: ., args: {SERVICE: gateway}}
+    image: demo-workloads/gateway
+    ports: ["8080:8080"]
+    environment:
+      <<: *otel-env
+      OTEL_SERVICE_NAME: gateway
+      KAFKA_BOOTSTRAP: redpanda:9092
+      REDIS_HOST: dw-redis
+      REDIS_PORT: "6379"
+      PORT: "8080"
+      LOGIN_URL: http://login-service:8080
+      BALANCE_URL: http://balance-service:8080
+      USER_URL: http://user-service:8080
+      PROFILE_URL: http://profile-service:8080
+      INSIGHTS_URL: http://insights-service:8080
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      RATE_LIMIT_PER_CLIENT_RPS: ${RATE_LIMIT_PER_CLIENT_RPS:-20}
+      RATE_LIMIT_GLOBAL_RPS: ${RATE_LIMIT_GLOBAL_RPS:-250}
+      RATE_LIMIT_GLOBAL_BURST: ${RATE_LIMIT_GLOBAL_BURST:-500}
+    depends_on:
+      redpanda: {condition: service_healthy}
+      dw-redis: {condition: service_healthy}
+
+  login-service:
+    <<: *app
+    build: {context: ., args: {SERVICE: login-service}}
+    image: demo-workloads/login-service
+    environment: {<<: *app-env, OTEL_SERVICE_NAME: login-service}
+    depends_on: {wiremock: {condition: service_healthy}}
+
+  funds-service:
+    <<: *app
+    build: {context: ., args: {SERVICE: funds-service}}
+    image: demo-workloads/funds-service
+    environment: {<<: *app-env, OTEL_SERVICE_NAME: funds-service, KAFKA_CONCURRENCY: "${FUNDS_CONCURRENCY:-8}"}
+    depends_on: &backend-deps
+      redpanda: {condition: service_healthy}
+      dw-postgres: {condition: service_healthy}
+      wiremock: {condition: service_healthy}
+
+  balance-service:
+    <<: *app
+    build: {context: ., args: {SERVICE: balance-service}}
+    image: demo-workloads/balance-service
+    environment: {<<: *app-env, OTEL_SERVICE_NAME: balance-service}
+    depends_on: *backend-deps
+
+  user-service:
+    <<: *app
+    build: {context: ., args: {SERVICE: user-service}}
+    image: demo-workloads/user-service
+    environment: {<<: *app-env, OTEL_SERVICE_NAME: user-service, KAFKA_CONCURRENCY: "${USER_CONCURRENCY:-6}"}
+    depends_on: *backend-deps
+
+  profile-service:
+    <<: *app
+    build: {context: ., args: {SERVICE: profile-service}}
+    image: demo-workloads/profile-service
+    environment: {<<: *app-env, OTEL_SERVICE_NAME: profile-service, KAFKA_CONCURRENCY: "${PROFILE_CONCURRENCY:-4}"}
+    depends_on: *backend-deps
+
+  insights-service:
+    <<: *app
+    build: {context: ., args: {SERVICE: insights-service}}
+    image: demo-workloads/insights-service
+    environment: {<<: *app-env, OTEL_SERVICE_NAME: insights-service, KAFKA_CONCURRENCY: "${INSIGHTS_CONCURRENCY:-12}"}
+    depends_on: *backend-deps
+
+volumes:
+  redpanda_data:
+  postgres_data:

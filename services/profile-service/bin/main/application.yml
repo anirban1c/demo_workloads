@@ -1,0 +1,10 @@
+spring:
+  application.name: profile-service
+  config.import: classpath:demo-defaults.yml
+  kafka.consumer.group-id: profile-service
+  datasource.hikari.schema: profile
+  flyway:
+    schemas: profile
+    default-schema: profile
+server.port: ${PORT:8086}
+demo.backpressure.bindings.relatecrm: [profile-commands]

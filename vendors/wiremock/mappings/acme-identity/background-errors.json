@@ -1,0 +1,33 @@
+{
+  "name": "acme-identity background-errors",
+  "priority": 3,
+  "request": {
+    "method": "ANY",
+    "urlPathPattern": "/identity/.*",
+    "headers": {
+      "X-Attempt-Id": {
+        "matches": "^ff.*"
+      }
+    }
+  },
+  "response": {
+    "status": 503,
+    "headers": {
+      "Content-Type": "application/json",
+      "Retry-After": "1"
+    },
+    "jsonBody": {
+      "error": "service_unavailable",
+      "message": "acme-identity is temporarily unavailable"
+    },
+    "delayDistribution": {
+      "type": "lognormal",
+      "median": 200,
+      "sigma": 0.4
+    }
+  },
+  "metadata": {
+    "vendor": "acme-identity",
+    "kind": "base"
+  }
+}

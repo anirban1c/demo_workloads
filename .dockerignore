@@ -1,0 +1,3 @@
+*
+!otel/*.jar
+!services/*/build/libs/app.jar

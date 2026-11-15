@@ -1,0 +1,28 @@
+spring:
+  application.name: gateway
+  config.import: classpath:demo-defaults.yml
+  autoconfigure.exclude: org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+  kafka.consumer.group-id: gateway
+  data.redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6380}
+server:
+  port: ${PORT:8080}
+  tomcat.threads.max: 400
+demo.backpressure.enabled: false
+
+gateway:
+  status-ttl: 1h
+  downstream-timeout: 5s
+  services:
+    login: ${LOGIN_URL:http://localhost:8082}
+    balance: ${BALANCE_URL:http://localhost:8084}
+    user: ${USER_URL:http://localhost:8085}
+    profile: ${PROFILE_URL:http://localhost:8086}
+    insights: ${INSIGHTS_URL:http://localhost:8087}
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    per-client-rps: ${RATE_LIMIT_PER_CLIENT_RPS:20}
+    per-client-burst: ${RATE_LIMIT_PER_CLIENT_BURST:40}
+    global-rps: ${RATE_LIMIT_GLOBAL_RPS:250}
+    global-burst: ${RATE_LIMIT_GLOBAL_BURST:500}

@@ -1,0 +1,31 @@
+{
+  "name": "kycheck check",
+  "priority": 5,
+  "request": {
+    "method": "POST",
+    "urlPath": "/kyc/checks"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "delayDistribution": {
+      "type": "lognormal",
+      "median": 350,
+      "sigma": 0.5
+    },
+    "jsonBody": {
+      "id": "kyc_{{randomValue type='UUID'}}",
+      "reference": "{{jsonPath request.body '$.reference'}}",
+      "result": "CLEAR"
+    },
+    "transformers": [
+      "response-template"
+    ]
+  },
+  "metadata": {
+    "vendor": "kycheck",
+    "kind": "base"
+  }
+}

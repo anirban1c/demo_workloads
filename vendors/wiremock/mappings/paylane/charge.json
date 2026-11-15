@@ -1,0 +1,33 @@
+{
+  "name": "paylane charge",
+  "priority": 5,
+  "request": {
+    "method": "POST",
+    "urlPath": "/paylane/v1/charges"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "delayDistribution": {
+      "type": "lognormal",
+      "median": 180,
+      "sigma": 0.4
+    },
+    "jsonBody": {
+      "id": "ch_{{randomValue type='UUID'}}",
+      "status": "succeeded",
+      "amount": "{{jsonPath request.body '$.amount'}}",
+      "currency": "{{jsonPath request.body '$.currency'}}",
+      "idempotencyKey": "{{request.headers.Idempotency-Key}}"
+    },
+    "transformers": [
+      "response-template"
+    ]
+  },
+  "metadata": {
+    "vendor": "paylane",
+    "kind": "base"
+  }
+}

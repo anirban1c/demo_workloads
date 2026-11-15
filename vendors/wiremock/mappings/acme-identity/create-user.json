@@ -1,0 +1,31 @@
+{
+  "name": "acme-identity create-user",
+  "priority": 5,
+  "request": {
+    "method": "POST",
+    "urlPath": "/identity/users"
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "delayDistribution": {
+      "type": "lognormal",
+      "median": 120,
+      "sigma": 0.4
+    },
+    "jsonBody": {
+      "id": "idp_{{randomValue type='UUID'}}",
+      "email": "{{jsonPath request.body '$.email'}}",
+      "status": "PROVISIONED"
+    },
+    "transformers": [
+      "response-template"
+    ]
+  },
+  "metadata": {
+    "vendor": "acme-identity",
+    "kind": "base"
+  }
+}

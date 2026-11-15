@@ -1,0 +1,35 @@
+{
+  "name": "acme-identity token-invalid",
+  "priority": 2,
+  "request": {
+    "method": "POST",
+    "urlPath": "/identity/oauth2/token",
+    "bodyPatterns": [
+      {
+        "matchesJsonPath": "$[?(@.password == 'wrong-password')]"
+      }
+    ]
+  },
+  "response": {
+    "status": 401,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "delayDistribution": {
+      "type": "lognormal",
+      "median": 60,
+      "sigma": 0.4
+    },
+    "jsonBody": {
+      "error": "invalid_grant",
+      "error_description": "Invalid username or password"
+    },
+    "transformers": [
+      "response-template"
+    ]
+  },
+  "metadata": {
+    "vendor": "acme-identity",
+    "kind": "base"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "relatecrm delete-contact",
+  "priority": 5,
+  "request": {
+    "method": "DELETE",
+    "urlPathPattern": "/crm/contacts/[^/]+"
+  },
+  "response": {
+    "status": 204,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "delayDistribution": {
+      "type": "lognormal",
+      "median": 80,
+      "sigma": 0.4
+    }
+  },
+  "metadata": {
+    "vendor": "relatecrm",
+    "kind": "base"
+  }
+}

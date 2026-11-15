@@ -1,0 +1,14 @@
+spring:
+  application.name: user-service
+  config.import: classpath:demo-defaults.yml
+  kafka.consumer.group-id: user-service
+  datasource.hikari.schema: users
+  flyway:
+    schemas: users
+    default-schema: users
+server.port: ${PORT:8085}
+demo:
+  backpressure:
+    bindings:
+      acme-identity: [user-commands]
+      kycheck: [user-commands]

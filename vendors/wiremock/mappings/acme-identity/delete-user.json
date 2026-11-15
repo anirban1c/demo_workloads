@@ -1,0 +1,23 @@
+{
+  "name": "acme-identity delete-user",
+  "priority": 5,
+  "request": {
+    "method": "DELETE",
+    "urlPathPattern": "/identity/users/[^/]+"
+  },
+  "response": {
+    "status": 204,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "delayDistribution": {
+      "type": "lognormal",
+      "median": 90,
+      "sigma": 0.4
+    }
+  },
+  "metadata": {
+    "vendor": "acme-identity",
+    "kind": "base"
+  }
+}
